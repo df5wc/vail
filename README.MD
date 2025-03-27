@@ -11,7 +11,7 @@ See below for usage examples.
 
 ## Platform and libraries
 
-This tool was written in python for Linux. It might work for Windows, but I haven't done any tests and do not plan to do so. It requires python 3 and the python `mido` and `rtmidi` packages.
+This tool was written in python for Linux. It might work for Windows, but I haven't done any tests and have no plans to do so. It requires python 3 and the python `mido` and `rtmidi` packages.
 
 
 ## Options and usage
@@ -55,7 +55,7 @@ $ vail --list
 Choose the correct midi device and configure it:
 
 ```
-$ ./vail --mode 8 --port 1 --tone 75 --wpm 18 --keyer 8
+$ vail --mode 8 --port 1 --tone 75 --wpm 18 --keyer 8
 ```
 
-Finally, open the [VBand website](https://hamradio.solutions/vband/) and in the settings configure the the input as "straight key". Use the "Practice channel" for some tests. Disable the side tone on the web page by clicking the blue speaker icon for your user on the right. Have fun!
+Finally, open the [VBand website](https://hamradio.solutions/vband/) and in the settings configure the input as "straight key". Use the "Practice channel" for some tests. Disable the side tone on the web page by clicking the blue speaker icon for your user on the right. Have fun!
