@@ -1,0 +1,197 @@
+#!/usr/bin/python3
+
+# Hey mu-jed, this is -*- Python -*-
+
+# Imports
+import getopt
+import mido
+import sys
+import time
+
+
+# Globals
+debugOutput = False
+
+
+# Print an error to stderr and exit
+def error(msg):
+    print(f"Error: {msg}", file = sys.stderr)
+    sys.exit(1)
+
+
+# Print a debug message to stderr if debug output is enabled
+def debug(msg):
+    if debugOutput:
+        print(msg, file = sys.stderr, flush = True)
+
+
+# Print usage information and exit
+def printHelp():
+    print(
+        "Usage: vail [options]\n"
+        "\n"
+        "Available options are:\n"
+        "  -d, --debug                   Enable debug output\n"
+        "  -h, --help                    This text\n"
+        "  -k keyer, --keyer keyer       Set vail keyer (default: iambic b)\n"
+        "  -l, --list                    List available MIDI devices\n"
+        "  -p port, --port port          MIDI port number to use for configuration\n"
+        "  -t tone, --tone tone          Set TX tone\n"
+        "  -w wpm, --wpm wpm             Set keyer speed\n"
+        "\n"
+        "The --help and --list options will always terminate and will not configure the\n"
+        "adapter. Additional options are ignored in both cases.\n"
+        "It is recommended to use at least the --port option, the programm will use\n"
+        "the first available adapter otherwise which is probably wrong. The port must\n"
+        "be given as a numeric value from the devices list output with --list.\n"
+    )
+    sys.exit(0)
+
+
+# Get options with error checking
+def getOpt(args, shortopts, longopts):
+    try:
+        return getopt.getopt(args, shortopts, longopts)
+    except getopt.GetoptError as e:
+        error(f"foo {e}")
+
+
+# Get an option argument as an integer
+def getOptInt(opt, arg):
+    try:
+        return int(arg)
+    except ValueError:
+        error(f'Argument to {opt} must be an integer value')
+
+
+# Return a list of all midi output devices in the system
+def getMidiDevices():
+    # For reasons unknown to me the call below results in each device listed
+    # twice.
+    added = { }
+    devices = [ ]
+    for dev in mido.get_output_names():
+        if not dev in added:
+            added[dev] = 1
+            devices.append(dev)
+    return devices
+
+
+###############################################################################
+#                             Vail adapter class                              #
+###############################################################################
+
+
+class VailAdapter:
+
+    port = None
+    keyer = 8
+    port = ''
+    tone = 69
+    wpm = 20
+
+    # Constructor
+    def __init__(self):
+        pass
+
+    # Send a midi control change message with the given data
+    def control_change(self, d0, d1):
+        msg = mido.Message.from_bytes((0xB0, d0, d1 ))
+        debug(f'Sending {msg.bytes()}')
+        self.outport.send(msg)
+
+    # Send a midi program change message with the given data
+    def program_change(self, program):
+        msg = mido.Message('program_change', program = program)
+        debug(f'Sending {msg.bytes()}')
+        self.outport.send(msg)
+
+    # Convert a WPM value to raw data necessary for the vail adapter. The raw
+    # data is the dit duration in 2ms steps.
+    def wpm_to_raw(self, wpm):
+        dit_duration = 60.0 / (50.0 * wpm)          # Seconds
+        return int(dit_duration * 1000.0 / 2.0)     # 2ms increments
+
+    def configure(self):
+        self.outport = mido.open_output(self.port)
+        self.control_change(0x01, self.wpm_to_raw(self.wpm))    # Set dit duration
+        self.control_change(0x02, self.tone)                    # Set tx note
+        self.program_change(self.keyer)                         # Switch keyer
+        self.control_change(0x00, 0x40)                         # Enable kbd mode
+
+
+
+
+###############################################################################
+#                                Main program                                 #
+###############################################################################
+
+
+def main():
+    global debugOutput
+
+    # Get all midi devices and make sure we have some
+    devices = getMidiDevices()
+    if len(devices) == 0:
+        error("No midi devices found")
+
+    #
+    adapter = VailAdapter()
+
+    # Parse command line options
+    opts, args = getOpt(
+        sys.argv[1:],
+        'dhk:l:p:t:w:',
+        [
+            'debug',
+            'help',
+            'list',
+            'keyer=',
+            'port=',
+            'tone=',
+            'wpm=',
+        ]
+    )
+
+    # Handle options
+    for opt, arg in opts:
+        if opt in [ '-d', '--debug' ]:
+            debugOutput = True
+        elif opt in [ '-h', '--help' ]:
+            printHelp()
+        elif opt in [ '-k', '--keyer' ]:
+            adapter.keyer = getOptInt(opt, arg)
+            if adapter.keyer < 0 or adapter.keyer > 9:
+                error(f'Argument to {opt} is out of range')
+        elif opt in [ '-l', '--list' ]:
+            nr = 0
+            for dev in devices:
+                print(f'{nr:>2}: {dev}')
+                nr += 1
+            sys.exit(0)
+        elif opt in [ '-p', '--port' ]:
+            port = getOptInt(opt, arg)
+            if port < 0 or port >= len(devices):
+                error(f'Argument to {opt} is out of range')
+            adapter.port = devices[port]
+        elif opt in [ '-t', '--tone' ]:
+            adapter.tone = getOptInt(opt, arg)
+            if adapter.tone < 0 or adapter.tone >= 127:
+                error(f'Argument to {opt} is out of range')
+        elif opt in [ '-w', '--wpm' ]:
+            adapter.wpm = getOptInt(opt, arg)
+            if adapter.wpm < 10 or adapter.wpm > 50:
+                error(f'Argument to {opt} is out of range')
+
+    # Check arguments
+    if adapter.port == '':
+        adapter.port = devices[0]       # Probably wrong, make it illegal?
+
+    # Configure the adapter
+    adapter.configure()
+
+    # Done
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
