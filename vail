@@ -141,7 +141,7 @@ def main():
     # Parse command line options
     opts, args = getOpt(
         sys.argv[1:],
-        'dhk:l:p:t:w:',
+        'dhk:lp:t:w:',
         [
             'debug',
             'help',
