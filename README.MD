@@ -24,8 +24,10 @@ Available options are:
   -h, --help                    This text
   -k keyer, --keyer keyer       Set vail keyer (default: iambic b)
   -l, --list                    List available MIDI devices
+  -m mode, --mode mode          Set adapter mode (kbd/midi)
   -p port, --port port          MIDI port number to use for configuration
   -t tone, --tone tone          Set TX tone
+  -V, --version                 Print version information
   -w wpm, --wpm wpm             Set keyer speed
 
 The --help and --list options will always terminate and will not configure the
@@ -35,14 +37,15 @@ the first available adapter otherwise which is probably wrong. The port must
 be given as a numeric value from the devices list output with --list.
 ```
 
-With the exception of `--help` and `--list` the program will always configure all settings (keyer, tone, wpm). If you don't specify one or the other, you will get default values which are:
+With the exception of `--help`, `--list` and `--version` the program will always configure all settings (keyer, tone, wpm). If you don't specify one or the other, you will get default values which are:
 
-| Option  | Default           | Comment                                                                        |
-|---------|-------------------|--------------------------------------------------------------------------------|
-| --keyer |    8              | See vail adapter documentation for possible values. 7 = iambic a, 8 = iambic b |
-| --port  | first midi device | It is suggested to always specify --port                                       |
-| --tone  |   69              | See vail adapter documentation for possible values                             |
-| --wpm   |   20              | Allowed range: 10..50                                                          |
+| Option  | Range   | Default          | Comment                                                                        |
+|---------|---------|------------------|--------------------------------------------------------------------------------|
+| --keyer |  1-9    |    8             | See vail adapter documentation for possible values. 7 = iambic a, 8 = iambic b |
+| --mode  |         |  kbd             | Use either "kbd" or "midi"                                                     |
+| --port  | depends |first midi device | It is suggested to always specify --port                                       |
+| --tone  |  0-127  |   69             | See vail adapter documentation for possible values                             |
+| --wpm   |  10-50  |   20             |                                                                                |
 
 The parameter for `--port` must be a number from the list output using the `--list` option. So first list the available devices:
 
@@ -55,7 +58,13 @@ $ vail --list
 Choose the correct midi device and configure it:
 
 ```
-$ vail --mode 8 --port 1 --tone 75 --wpm 18 --keyer 8
+$ vail --keyer 8 --mode kbd --port 1 --tone 75 --wpm 20
+```
+
+Because of the defaults shown above, this is identical to
+
+```
+$ vail --port 1 --tone 75
 ```
 
 Finally, open the [VBand website](https://hamradio.solutions/vband/) and in the settings configure the input as "straight key". Use the "Practice channel" for some tests. Disable the side tone on the web page by clicking the blue speaker icon for your user on the right. Have fun!

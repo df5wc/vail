@@ -5,6 +5,7 @@
 # Imports
 import getopt
 import mido
+import re
 import sys
 import time
 
@@ -35,8 +36,10 @@ def printHelp():
         "  -h, --help                    This text\n"
         "  -k keyer, --keyer keyer       Set vail keyer (default: iambic b)\n"
         "  -l, --list                    List available MIDI devices\n"
+        "  -m mode, --mode mode          Set adapter mode (kbd/midi)\n"
         "  -p port, --port port          MIDI port number to use for configuration\n"
         "  -t tone, --tone tone          Set TX tone\n"
+        "  -V, --version                 Print version information\n"
         "  -w wpm, --wpm wpm             Set keyer speed\n"
         "\n"
         "The --help and --list options will always terminate and will not configure the\n"
@@ -77,6 +80,23 @@ def getMidiDevices():
     return devices
 
 
+# Return program information from SVN in a dict
+def getVersion():
+    svnId = "$Id: vail 3711 2025-08-17 19:01:21Z uz $"
+    idPat = '\\d+'
+    datePat = '\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}'
+    userPat = '\\w+'
+    m = re.search(f'^\\$Id: vail ({idPat}) ({datePat})Z ({userPat}) \\$$', svnId)
+    if m is not None:
+        return {
+            'version': m[1],
+            'lastChange': m[2],
+            'author': m[3]
+        }
+    else:
+        return None
+
+
 ###############################################################################
 #                             Vail adapter class                              #
 ###############################################################################
@@ -86,6 +106,7 @@ class VailAdapter:
 
     port = None
     keyer = 8
+    mode = 0x40         # Keyboard mode, 0x00 = midi
     port = ''
     tone = 69
     wpm = 20
@@ -117,9 +138,7 @@ class VailAdapter:
         self.control_change(0x01, self.wpm_to_raw(self.wpm))    # Set dit duration
         self.control_change(0x02, self.tone)                    # Set tx note
         self.program_change(self.keyer)                         # Switch keyer
-        self.control_change(0x00, 0x40)                         # Enable kbd mode
-
-
+        self.control_change(0x00, self.mode)                    # Switch mode
 
 
 ###############################################################################
@@ -141,14 +160,16 @@ def main():
     # Parse command line options
     opts, args = getOpt(
         sys.argv[1:],
-        'dhk:lp:t:w:',
+        'dhk:lm:p:t:Vw:',
         [
             'debug',
             'help',
             'list',
             'keyer=',
+            'mode=',
             'port=',
             'tone=',
+            'version',
             'wpm=',
         ]
     )
@@ -161,7 +182,7 @@ def main():
             printHelp()
         elif opt in [ '-k', '--keyer' ]:
             adapter.keyer = getOptInt(opt, arg)
-            if adapter.keyer < 0 or adapter.keyer > 9:
+            if adapter.keyer < 1 or adapter.keyer > 9:
                 error(f'Argument to {opt} is out of range')
         elif opt in [ '-l', '--list' ]:
             nr = 0
@@ -169,6 +190,14 @@ def main():
                 print(f'{nr:>2}: {dev}')
                 nr += 1
             sys.exit(0)
+        elif opt in [ '-m', '--mode' ]:
+            mode = arg.lower()
+            if mode == "0" or mode == "midi":
+                adapter.mode = 0x00
+            elif mode == "1" or mode == "kbd":
+                adapter.mode = 0x40
+            else:
+                error(f'Argument to {opt} must be either "kbd" or "midi"')
         elif opt in [ '-p', '--port' ]:
             port = getOptInt(opt, arg)
             if port < 0 or port >= len(devices):
@@ -178,6 +207,12 @@ def main():
             adapter.tone = getOptInt(opt, arg)
             if adapter.tone < 0 or adapter.tone >= 127:
                 error(f'Argument to {opt} is out of range')
+        elif opt in [ '-V', '--version' ]:
+            info = getVersion()
+            if info is None:
+                print("unknown")
+            else:
+                print(f'Version {info["version"]}, last changed on {info["lastChange"]} by {info["author"]}')
         elif opt in [ '-w', '--wpm' ]:
             adapter.wpm = getOptInt(opt, arg)
             if adapter.wpm < 10 or adapter.wpm > 50:
